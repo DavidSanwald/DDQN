@@ -23,19 +23,17 @@ class Experiment:
         self.reward = 0
         s = self.env.reset()
         done = False
-        for n in range(MAX_STEPS):
+        while not done:
             self.env.render()
             a = agent.act(s)
             s_, r, done, _ = self.env.step(a)
             agent.learn((s, a, s_, r, done))
             self.reward += r
             s = s_
-            if done:
-                self.episode_count += 1
-                print("Episode Nr. {} \nScore: {}".format(self.episode_count,
-                                                          self.reward))
-                break
-                pass
+
+        self.episode_count += 1
+        print("Episode Nr. {} \nScore: {}".format(self.episode_count,
+                                                  self.reward))
 
 
 if __name__ == "__main__":

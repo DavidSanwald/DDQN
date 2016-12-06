@@ -33,7 +33,7 @@ class NN:
         #                activation=self.act,
         #            bias=True))
         model.add(Dense(size_hidden, activation=self.act))
-        model.add(Dense(size_hidden, activation=self.act))
+        #model.add(Dense(size_hidden, activation=self.act))
         #model.add(Dense(size_hidden, activation=self.act))
         #model.add(Dense(size_hidden, activation='tanh', bias=True))
         model.add(Dense(n_actions, activation='linear'))
@@ -42,10 +42,8 @@ class NN:
         #           beta_2=0.999,
         #           epsilon=1e-08,
         #           decay=1e-4)
-        opt = SGD(lr=self.learning_rate,
-                  decay=1e-5,
-                  momentum=0.5,
-                  nesterov=True)
+        opt = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.5)
+        #opt = RMSprop(lr=self.learning_rate)
         model.compile(loss='mean_squared_error', optimizer=opt)
         return model
 

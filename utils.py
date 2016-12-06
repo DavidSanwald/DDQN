@@ -1,0 +1,12 @@
+import numpy as np
+
+
+def prep_input(data, n_dimension):
+    prep = np.asarray(data)
+    transformed = prep.reshape((1, n_dimension))
+    return transformed
+
+
+def prep_batch(to_prep):
+    prep = np.vstack(to_prep)
+    return prep

@@ -1,19 +1,22 @@
-import gym
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+from collections import deque
 
 import agent
+import gym
 import observer
-
-N_EPISODES = 2000
-MAX_STEPS = 2000
+from parameters import *
 
 
 class Experiment:
     def __init__(self, environment):
         self.env = gym.make(environment)
         self.episode_count = 0
+        self.reward_buffer = deque([], maxlen=100)
 
     def run_experiment(self, agent):
-        self.env.monitor.start('/tmp/blog', force=True)
+        self.env.monitor.start('/tmp/cartpole', force=True)
         for n in range(N_EPISODES):
             self.run_episode(agent)
         self.env.monitor.close()
@@ -32,8 +35,11 @@ class Experiment:
             s = s_
 
         self.episode_count += 1
-        print("Episode Nr. {} \nScore: {}".format(self.episode_count,
-                                                  self.reward))
+        self.reward_buffer.append(self.reward)
+        average = sum(self.reward_buffer) / len(self.reward_buffer)
+
+        print("Episode Nr. {} \nScore: {} \nAverage: {}".format(
+            self.episode_count, self.reward, average))
 
 
 if __name__ == "__main__":

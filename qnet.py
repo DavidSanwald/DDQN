@@ -1,56 +1,45 @@
-import keras
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
-from keras import initializations
+
+import keras
 from keras.layers.core import Dense
 from keras.models import Sequential
-from keras.optimizers import SGD, Adam, RMSprop
-
+from keras.optimizers import SGD
+from keras.regularizers import l2
 from utils import prep_batch, prep_input
 
 
-def my_init(shape, name=None):
-    return initializations.normal(shape, scale=0.0001, name=name)
-
-
 class NN:
-    def __init__(self, n_states, n_actions, size_hidden, learning_rate,
-                 activation):
+    def __init__(self, n_states, n_actions, batch_size, size_hidden,
+                 learning_rate, activation):
         self.learning_rate = learning_rate
         self.act = activation
         self.n_states = n_states
         self.n_actions = n_actions
         self.model = self._make_model(n_states, n_actions, size_hidden)
         self.model_t = self._make_model(n_states, n_actions, size_hidden)
+        self.batch_size = batch_size
 
     def _make_model(self, n_states, n_actions, size_hidden):
         model = Sequential()
         model.add(Dense(size_hidden, input_dim=4, activation=self.act))
-        #model.add(Dense(128, activation='tanh', bias=True))
-        #model.add(Dense(128, activation='tanh', bias=True))
-        #model.add(Dense(128, activation='tanh', bias=True))
-        #model.add(Dense(size_hidden,
-        #                init='he_normal',
-        #                activation=self.act,
-        #            bias=True))
         model.add(Dense(size_hidden, activation=self.act))
-        #model.add(Dense(size_hidden, activation=self.act))
-        #model.add(Dense(size_hidden, activation=self.act))
-        #model.add(Dense(size_hidden, activation='tanh', bias=True))
         model.add(Dense(n_actions, activation='linear'))
-        #opt = Adam(lr=0.08,
-        #           beta_1=0.9,
-        #           beta_2=0.999,
-        #           epsilon=1e-08,
-        #           decay=1e-4)
-        opt = SGD(lr=self.learning_rate, decay=1e-7, momentum=0.5)
-        #opt = RMSprop(lr=self.learning_rate)
+        opt = SGD(lr=self.learning_rate, momentum=0.5, decay=1e-6, clipnorm=2)
         model.compile(loss='mean_squared_error', optimizer=opt)
         return model
 
     def train(self, X, y):
         X = prep_batch(X)
         y = prep_batch(y)
-        loss = self.model.train_on_batch(X, y)
+        loss = self.model.fit(X,
+                              y,
+                              batch_size=self.batch_size,
+                              nb_epoch=1,
+                              verbose=0,
+                              shuffle=True)
 
         return loss
 

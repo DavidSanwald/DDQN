@@ -1,23 +1,12 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import numpy as np
 
 from memory import ReplayMemory
 from observer import EpsilonUpdater
+from parameters import *
 from qnet import NN
-
-EPSILON_MIN = 0.1
-EPSILON_MAX = 0.8
-EPSILON_DECAY = 0.0005
-MEMORY_CAPACITY = 100000
-TARGET_UPDATE = 250
-SIZE_HIDDEN = 16
-BATCH_SIZE = 32
-GAMMA = 0.99
-EVAL_RATE = 50
-LEARNING_RATE = 0.01
-MAX_STEPS = 2000
-ACTIVATION = 'tanh'
-LEARNING_START = 1
-N_EPISODES = 20000
 
 
 class DQNAgent:
@@ -27,7 +16,7 @@ class DQNAgent:
         self.dim_actions = self.env.action_space.n
         self.dim_states = self.env.observation_space.shape
         self.NN = NN(self.env.observation_space.shape, self.env.action_space.n,
-                     SIZE_HIDDEN, LEARNING_RATE, ACTIVATION)
+                     BATCH_SIZE, SIZE_HIDDEN, LEARNING_RATE, ACTIVATION)
         self.observers = []
         self.episode_count = 0
         self.step_count_total = 1
@@ -78,7 +67,7 @@ class DQNAgent:
     def flashback(self):
         X, y = self._make_batch()
         self.loss = self.NN.train(X, y)
-        if np.isnan(self.loss).any():
+        if np.isnan(self.loss.history['loss']).any():
             print('Warning, loss is {}'.format(self.loss))
         pass
 

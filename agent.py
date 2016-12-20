@@ -10,13 +10,13 @@ from qnet import NN
 
 
 class DQNAgent:
-    def __init__(self, environment):
+    def __init__(self, environment, sess):
         self.env = environment
         self.memory = ReplayMemory(MEMORY_CAPACITY)
         self.dim_actions = self.env.action_space.n
         self.dim_states = self.env.observation_space.shape
         self.NN = NN(self.env.observation_space.shape, self.env.action_space.n,
-                     BATCH_SIZE, SIZE_HIDDEN, LEARNING_RATE, ACTIVATION)
+                     SIZE_HIDDEN, LEARNING_RATE, ACTIVATION, BATCH_SIZE, sess)
         self.observers = []
         self.episode_count = 0
         self.step_count_total = 1
@@ -43,11 +43,6 @@ class DQNAgent:
             observer(event)
         pass
 
-    def act(self, state):
-        self.step_count_total += 1
-        action = self.choose_action(state)
-        return action
-
     def learn(self, obs):
         self.memory.store(obs)
         if self.learning_switch:
@@ -67,20 +62,16 @@ class DQNAgent:
     def flashback(self):
         X, y = self._make_batch()
         self.loss = self.NN.train(X, y)
-        if np.isnan(self.loss.history['loss']).any():
-            print('Warning, loss is {}'.format(self.loss))
         pass
 
-    def choose_action(self, state):
+    def act(self, state):
+        self.step_count_total += 1
+        greedy_choice, max_q = self.NN.best_action(state, usetarget=False)
         if np.random.rand() <= self.epsilon:
-            choice = self.random_choice()
+            final_choice = self.random_choice()
         else:
-            choice = self.greedy_choice(state)
-        return choice
-
-    def greedy_choice(self, state):
-        greedy_choice = self.NN.best_action(state, usetarget=False)
-        return greedy_choice
+            final_choice = greedy_choice
+        return final_choice, max_q
 
     def random_choice(self):
         random_choice = np.random.randint(0, self.dim_actions)
@@ -94,7 +85,7 @@ class DQNAgent:
             X.append(state)
             target = self.NN.predict(state, False)
             q_vals_new_t = self.NN.predict(newstate, self.usetarget)
-            a_select = self.NN.best_action(newstate, False)
+            a_select, _ = self.NN.best_action(newstate, False)
             if done:
                 target[action] = reward
             else:

@@ -41,13 +41,15 @@ class Experiment:
             max_q_episode.append(max_q)
             s_, r, done, _ = self.env.step(a)
             agent.learn((s, a, s_, r, done))
+            #self.sess.run(print(agent.loss.eval))
             self.reward += r
             s = s_
         ep_mean_max_q = sum(max_q_episode) / len(max_q_episode)
         summary_str = self.sess.run(self.summary_ops,
                                     feed_dict={
                                         self.summary_vars[0]: self.reward,
-                                        self.summary_vars[1]: ep_mean_max_q
+                                        self.summary_vars[1]: ep_mean_max_q,
+                                        self.summary_vars[2]: agent.loss
                                     })
 
         self.writer.add_summary(summary_str, self.episode_count)
@@ -65,8 +67,11 @@ def build_summaries():
     tf.scalar_summary("Reward", episode_reward)
     episode_mean_max_q = tf.Variable(0.)
     tf.scalar_summary("Qmax Value Episode Mean", episode_mean_max_q)
+    loss = tf.Variable(0.)
+    loss_mean = tf.reduce_mean(loss)
+    tf.scalar_summary("loss", loss_mean)
 
-    summary_vars = [episode_reward, episode_mean_max_q]
+    summary_vars = [episode_reward, episode_mean_max_q, loss_mean]
     summary_ops = tf.merge_all_summaries()
 
     return summary_ops, summary_vars
@@ -78,8 +83,9 @@ if __name__ == "__main__":
     import observer
     import tensorflow as tf
     with tf.Session() as sess:
-        key = 'CartPole-v0'
-        exp = Experiment(key, sess)
+        key1 = 'CartPole-v0'
+        key2 = 'LunarLander-v2'
+        exp = Experiment(key1, sess)
         agent = agent.DQNAgent(exp.env, sess)
         epsilon = observer.EpsilonUpdater(agent)
         agent.add_observer(epsilon)

@@ -15,49 +15,29 @@ class NN:
         self.n_actions = n_actions
         self.size_hidden = size_hidden
         self.learningrate = learningrate
-        self.inputs, self.outputs = self._make_model(self.activation,
-                                                     'online_network')
-        self.network_params = tf.trainable_variables()
-        self.inputs_t, self.outputs_t = self._make_model(self.activation,
-                                                         'target_network')
-        self.target_network_params = tf.trainable_variables()[len(
-            self.network_params):]
-        self.predicted_q_value = tf.placeholder(
-            tf.float32,
-            [None, 2], )
-        self.loss = tf.reduce_mean(
-            tf.square(self.outputs - self.predicted_q_value),
-            name='loss_function')
-        self.opt = tf.train.GradientDescentOptimizer(
-            self.learningrate, name='training_online_network')
-        self.opt_operation = self.opt.minimize(self.loss)
-        self.update_target_network_params = [
-            self.target_network_params[i].assign(self.network_params[i])
+        with tf.variable_scope('online_NN') as scope:
+            self.inputs, self.outputs = build_model(
+                self.activation, size_hidden, n_sates, n_actions)
+            self.loss = build_loss(self.inputs, self.outputs)
+            self.online_network_params = tf.get_collection(
+                tf.GraphKeys.VARIABLES, scope=scope.name)
+            self.train_op = build_training(self.loss, self.learningrate, 0.5)
+        with tf.variable_scope('target_NN') as scope:
+            self.inputs_t, self.outputs_t = build_model(
+                self.activation, size_hidden, n_sates, n_actions)
+            self.target_network_params = tf.get_collection(
+                tf.GraphKeys.VARIABLES, scope=scope.name)
+        self.update_target_network_params_op = [
+            self.target_network_params[i].assign(self.online_network_params[i])
             for i in range(len(self.target_network_params))
         ]
-
-    def _make_model(self, act, network):
-        with tf.variable_scope(network):
-            input_layer = tflearn.input_data(
-                shape=[None, self.n_states[0]], name='input')
-            net = tflearn.fully_connected(
-                input_layer, 16, activation=act, name='l1')
-            net = tflearn.fully_connected(net, 16, activation=act, name='l2')
-            net = tflearn.fully_connected(net, 16, activation=act, name='l3')
-            #net = tflearn.fully_connected(net, 64, activation=act)
-            #net = tflearn.fully_connected(net, 32, activation=act)
-            output_layer = tflearn.fully_connected(
-                net, 2, activation='linear', name='output')
-        return input_layer, output_layer
 
     def train(self, X, y):
         X = prep_batch(X)
         y = prep_batch(y)
-        with tf.name_scope('training_online_network'):
-            loss = self.sess.run(
-                self.opt_operation,
-                feed_dict={self.inputs: X,
-                           self.predicted_q_value: y})
+        loss = self.sess.run([self.loss, self.train_op],
+                             feed_dict={self.inputs: X,
+                                        self.outpus: y})
         return loss
 
     def predict(self, state, usetarget=False):
@@ -76,7 +56,7 @@ class NN:
 
     def update_target(self):
         print('update')
-        self.updateTarget()
+        self.sess.run(self.update_target_network_params_op)
         pass
 
     def best_action(self, state, usetarget=False):
@@ -90,14 +70,49 @@ class NN:
         max_q = q_vals[best_action]
         return best_action, max_q
 
-    def save(self, fname):
-        self.model.save_weights(fname, overwrite=True)
-        pass
 
-    def load(self, fname):
-        self.model.load_weights(fname)
-        self.update()
-        pass
+def build_model(self, act, size_hidden, n_states, n_actions):
+    input_layer = tflearn.input_data(shape=[None, n_states], name='input')
+    net = tflearn.fully_connected(
+        input_layer,
+        size_hidden,
+        activation=act,
+        name='l1',
+        weights_init='Xavier',
+        bias_init='zeros')
+    net = tflearn.fully_connected(
+        net,
+        size_hidden,
+        activation=act,
+        name='l2',
+        weights_init='Xavier',
+        bias_init='zeros')
+    #    net = tflearn.fully_connected(
+    #        net,
+    #        size_hidden,
+    #        activation=act,
+    #        name='l3',
+    #        weights_init='Xavier',
+    #        bias_init='zeros')
+    #net = tflearn.fully_connected(
+    #    net, size_hidden, activation=act, name='l3')
+    #net = tflearn.fully_connected(
+    #    net, size_hidden, activation=act, name='l4')
+    #net = tflearn.fully_connected(
+    #    net, size_hidden, activation=act, name='l4')
+    #net = tflearn.fully_connected(net, 64, activation=act)
+    #net = tflearn.fully_connected(net, 32, activation=act)
+    output_layer = tflearn.fully_connected(
+        net, n_actions, activation='linear', name='output')
+    return input_layer, output_layer
 
-    def updateTarget(self):
-        self.sess.run(self.update_target_network_params)
+
+def build_loss(X, y):
+    loss = tflearn.mean_square(X, y)
+    return loss
+
+
+def build_training(loss, learningrate, momentum):
+    optimizer = tf.train.MomentumOptimizer(learningrate, momentum)
+    training_op = opt.minimize(loss, name="minimize_loss")
+    return training_op

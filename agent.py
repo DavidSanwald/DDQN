@@ -53,7 +53,6 @@ class DQNAgent:
     def backup(self):
         self.flashback()
         if self.step_count_total % self.target_update == 0:
-            print('update')
             print(self.epsilon)
             self.NN.update_target()
             self.usetarget = True
@@ -62,6 +61,7 @@ class DQNAgent:
     def flashback(self):
         X, y = self._make_batch()
         self.loss = self.NN.train(X, y)
+        print(self.loss)
         pass
 
     def act(self, state):

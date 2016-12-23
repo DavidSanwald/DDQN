@@ -61,7 +61,6 @@ class DQNAgent:
     def flashback(self):
         X, y = self._make_batch()
         self.loss = self.NN.train(X, y)
-        print(self.loss)
         pass
 
     def act(self, state):

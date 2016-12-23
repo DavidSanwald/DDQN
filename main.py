@@ -21,9 +21,7 @@ class Experiment:
         self.reward_buffer = deque([], maxlen=100)
 
     def run_experiment(self, agent):
-        self.summary_ops, self.summary_vars = build_summaries()
         self.sess.run(tf.initialize_all_variables())
-        self.writer = tf.train.SummaryWriter(SUMMARY_DIR, sess.graph)
         self.env.monitor.start('/tmp/cartpole', force=True)
         for n in range(N_EPISODES):
             self.run_episode(agent)
@@ -44,37 +42,12 @@ class Experiment:
             #self.sess.run(print(agent.loss.eval))
             self.reward += r
             s = s_
-        ep_mean_max_q = sum(max_q_episode) / len(max_q_episode)
-        summary_str = self.sess.run(self.summary_ops,
-                                    feed_dict={
-                                        self.summary_vars[0]: self.reward,
-                                        self.summary_vars[1]: ep_mean_max_q,
-                                        self.summary_vars[2]: agent.loss
-                                    })
-
-        self.writer.add_summary(summary_str, self.episode_count)
-        self.writer.flush()
         self.episode_count += 1
         self.reward_buffer.append(self.reward)
         average = sum(self.reward_buffer) / len(self.reward_buffer)
 
         print("Episode Nr. {} \nScore: {} \nAverage: {}".format(
             self.episode_count, self.reward, average))
-
-
-def build_summaries():
-    episode_reward = tf.Variable(0.)
-    tf.scalar_summary("Reward", episode_reward)
-    episode_mean_max_q = tf.Variable(0.)
-    tf.scalar_summary("Qmax Value Episode Mean", episode_mean_max_q)
-    loss = tf.Variable(0.)
-    loss_mean = tf.reduce_mean(loss)
-    tf.scalar_summary("loss", loss_mean)
-
-    summary_vars = [episode_reward, episode_mean_max_q, loss_mean]
-    summary_ops = tf.merge_all_summaries()
-
-    return summary_ops, summary_vars
 
 
 if __name__ == "__main__":

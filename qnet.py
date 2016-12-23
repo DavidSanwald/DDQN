@@ -17,14 +17,15 @@ class NN:
         self.learningrate = learningrate
         with tf.variable_scope('online_NN') as scope:
             self.inputs, self.outputs = build_model(
-                self.activation, size_hidden, n_sates, n_actions)
-            self.loss = build_loss(self.inputs, self.outputs)
+                self.activation, size_hidden, n_states[0], n_actions)
+            self.targets = tf.placeholder(tf.float32)
+            self.loss = build_loss(self.targets, self.outputs)
             self.online_network_params = tf.get_collection(
                 tf.GraphKeys.VARIABLES, scope=scope.name)
             self.train_op = build_training(self.loss, self.learningrate, 0.5)
         with tf.variable_scope('target_NN') as scope:
             self.inputs_t, self.outputs_t = build_model(
-                self.activation, size_hidden, n_sates, n_actions)
+                self.activation, size_hidden, n_states[0], n_actions)
             self.target_network_params = tf.get_collection(
                 tf.GraphKeys.VARIABLES, scope=scope.name)
         self.update_target_network_params_op = [
@@ -37,7 +38,7 @@ class NN:
         y = prep_batch(y)
         loss = self.sess.run([self.loss, self.train_op],
                              feed_dict={self.inputs: X,
-                                        self.outpus: y})
+                                        self.targets: y})
         return loss
 
     def predict(self, state, usetarget=False):
@@ -71,7 +72,7 @@ class NN:
         return best_action, max_q
 
 
-def build_model(self, act, size_hidden, n_states, n_actions):
+def build_model(act, size_hidden, n_states, n_actions):
     input_layer = tflearn.input_data(shape=[None, n_states], name='input')
     net = tflearn.fully_connected(
         input_layer,
@@ -114,5 +115,5 @@ def build_loss(X, y):
 
 def build_training(loss, learningrate, momentum):
     optimizer = tf.train.MomentumOptimizer(learningrate, momentum)
-    training_op = opt.minimize(loss, name="minimize_loss")
+    training_op = optimizer.minimize(loss, name="minimize_loss")
     return training_op

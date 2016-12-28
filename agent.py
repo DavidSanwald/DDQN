@@ -6,7 +6,7 @@ import numpy as np
 from memory import ReplayMemory
 from observer import EpsilonUpdater
 from parameters import *
-from qnet import NN
+from qnet import Networks
 
 
 class DQNAgent:
@@ -15,8 +15,9 @@ class DQNAgent:
         self.memory = ReplayMemory(MEMORY_CAPACITY)
         self.dim_actions = self.env.action_space.n
         self.dim_states = self.env.observation_space.shape
-        self.NN = NN(self.env.observation_space.shape, self.env.action_space.n,
-                     SIZE_HIDDEN, LEARNING_RATE, ACTIVATION, BATCH_SIZE, sess)
+        self.NN = Networks(ACTIVATION, self.env.observation_space.shape[0],
+                           self.env.action_space.n, SIZE_HIDDEN, MOMENTUM,
+                           LEARNING_RATE, sess)
         self.observers = []
         self.episode_count = 0
         self.step_count_total = 1
@@ -53,7 +54,7 @@ class DQNAgent:
     def backup(self):
         self.flashback()
         if self.step_count_total % self.target_update == 0:
-            print(self.epsilon)
+            #print(self.epsilon)
             self.NN.update_target()
             self.usetarget = True
         pass
@@ -82,8 +83,8 @@ class DQNAgent:
         batch = self.memory.get_batch(self.batch_size)
         for state, action, newstate, reward, done in batch:
             X.append(state)
-            target = self.NN.predict(state, False)
-            q_vals_new_t = self.NN.predict(newstate, self.usetarget)
+            target, _ = self.NN.predict(state, False)
+            q_vals_new_t, _ = self.NN.predict(newstate, self.usetarget)
             a_select, _ = self.NN.best_action(newstate, False)
             if done:
                 target[action] = reward

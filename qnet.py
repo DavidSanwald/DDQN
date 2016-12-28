@@ -73,7 +73,7 @@ class Networks:
         return update_op
 
     def _build_update_op_soft(self, target_vars, online_vars):
-        tau = 1e-1
+        tau = 1e-2
         update_op = [
             target_vars[i].assign(tf.mul(online_vars[i], tau) + tf.mul(
                 target_vars[i], (1 - tau))) for i in range(len(online_vars))

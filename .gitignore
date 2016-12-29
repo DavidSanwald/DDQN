@@ -1,6 +1,9 @@
 ### Python ###
 # Byte-compiled / optimized / DLL files
 summaries/
+experiments/
+checkpoints/
+.ipynb_checkpoints/
 __pycache__/
 *.py[cod]
 *$py.class

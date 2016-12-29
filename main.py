@@ -1,74 +1,50 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import statistics
-from collections import deque
-
-import agent
-import gym
-import observer
-import tensorflow as tf
-from parameters import *
-
-SUMMARY_DIR = './summaries'
-
-
-class Experiment:
-    def __init__(self, environment, sess):
-        self.sess = sess
-        self.env = gym.make(environment)
-        self.episode_count = 0
-        self.reward_buffer = deque([], maxlen=100)
-
-    def run_experiment(self, agent):
-        self.sess.run(tf.global_variables_initializer())
-        #self.env.monitor.start('/tmp/cartpole', force=True)
-        for n in range(N_EPISODES):
-            self.run_episode(agent)
-        self.env.monitor.close()
-        pass
-
-    def run_episode(self, agent):
-        self.reward = 0
-        max_q_episode = []
-        s = self.env.reset()
-        done = False
-        step = 0
-        while not done and step <= 2000:
-            self.env.render()
-            a, max_q = agent.act(s)
-            max_q_episode.append(max_q)
-            s_, r, done, _ = self.env.step(a)
-            agent.learn((s, a, s_, r, done))
-            #self.sess.run(print(agent.loss.eval))
-            self.reward += r
-            s = s_
-            step += 1
-        self.episode_count += 1
-        self.reward_buffer.append(self.reward)
-        average = sum(self.reward_buffer) / len(self.reward_buffer)
-
-        print("Episode Nr. {} \nScore: {} \nAverage: {} \nEpsilon: {}".format(
-            self.episode_count, self.reward, average, agent.epsilon))
-
-
 if __name__ == "__main__":
+    import os
     import shutil
     import gym
     import agent
+    import experiment
     import observer
     import tensorflow as tf
+    from parameters import *
+    test = 'test'
+    experiment_dir = os.path.abspath("./experiments/{}".format(test))
+    checkpoint_dir = os.path.join(experiment_dir, "checkpoints")
+    checkpoint_path = os.path.join(checkpoint_dir, "model")
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
     try:
-        shutil.rmtree(SUMMARY_DIR)
+        shutil.rmtree(LOGS_DIR)
     except (FileNotFoundError):
         pass
-    with tf.Session() as sess:
+    new_graph = tf.Graph()
+
+    with tf.Session(graph=new_graph) as sess:
+        global_step = tf.Variable(0, name='global_step', trainable=False)
+        #global_step = tf.contrib.framework.get_or_create_global_step(
+        #    graph=new_graph)
+        latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         key1 = 'CartPole-v0'
         key2 = 'LunarLander-v2'
-        exp = Experiment(key2, sess)
+        environment = gym.make(key1)
+        exp = experiment.Experiment(environment, sess, checkpoint_path)
         agent = agent.DQNAgent(exp.env, sess)
         epsilon = observer.EpsilonUpdater(agent)
         agent.add_observer(epsilon)
+        exp.saver = tf.train.Saver()
+        init_op = tf.global_variables_initializer()
+        sess.run(init_op)
+        if latest_checkpoint:
+            print(latest_checkpoint)
+            print("restoring")
+            test = tf.train.get_checkpoint_state(checkpoint_dir)
+            #saver = tf.train.import_meta_graph(latest_checkpoint + '.meta')
+
+            exp.saver.restore(sess, latest_checkpoint)
+
         #exp.env.monitor.start('/tmp/cartpole-experiment-1')
         exp.run_experiment(agent)
         #exp.env.monitor.close()

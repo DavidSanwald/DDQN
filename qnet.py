@@ -1,6 +1,7 @@
 import numpy as np
 
 import tensorflow as tf
+from parameters import *
 from tensorflow.contrib import layers, learn, losses
 from utils import prep_batch, prep_input
 
@@ -8,23 +9,20 @@ from utils import prep_batch, prep_input
 class Networks:
     def __init__(self, act, n_states, n_actions, size_hidden, momentum,
                  learningrate, sess):
-        self.step = tf.contrib.framework.create_global_step()
-
         self.Q_o = QModel("online", act, n_states, n_actions, size_hidden,
-                          momentum, learningrate, self.step)
+                          momentum, learningrate)
         self.Q_t = QModel("target", act, n_states, n_actions, size_hidden,
-                          momentum, learningrate, self.step)
+                          momentum, learningrate)
         self.n_states = n_states
         self.sess = sess
-        self.update_op = self._build_update_op_soft(self.Q_t.var_list,
-                                                    self.Q_o.var_list)
+        self.update_op = self._build_update_op(self.Q_t.var_list,
+                                               self.Q_o.var_list)
         #self.global_step = tf.Variable(0, name='global_step', trainable=False)
         #self.predictions = tf.summary.histogram("q_vals", self.Q_o.outputs)
         self.summary_ops_scalar = self._build_summaries_scalar()
         self.summary_ops_histo = self._build_summaries_histo()
 
-        self.writer = tf.summary.FileWriter('./summaries', self.sess.graph)
-        self.sess.run(tf.global_variables_initializer())
+        self.writer = tf.summary.FileWriter(LOGS_DIR, self.sess.graph)
         pass
 
     def train(self, X, y):
@@ -33,8 +31,8 @@ class Networks:
         feed_dict = {self.Q_o.inputs: X, self.Q_o.q_targets: y}
         _, test = self.sess.run([self.Q_o.train_op, self.summary_ops_scalar],
                                 feed_dict)
-
-        self.writer.add_summary(test, self.step)
+        step = tf.contrib.framework.get_global_step().eval()
+        self.writer.add_summary(test, step)
         pass
 
     def predict(self, state, usetarget):
@@ -44,7 +42,7 @@ class Networks:
                                    feed_dict={self.Q_t.inputs: state})
             summary_str = ""
         else:
-            summary_str, q_vals, self.step = self.sess.run(
+            summary_str, q_vals, step = self.sess.run(
                 [
                     self.summary_ops_histo, self.Q_o.outputs,
                     tf.train.get_global_step()
@@ -56,7 +54,8 @@ class Networks:
 
     def best_action(self, state, usetarget):
         q_vals, summary_str = self.predict(state, usetarget)
-        self.writer.add_summary(summary_str, self.step)
+        step = tf.contrib.framework.get_global_step().eval()
+        self.writer.add_summary(summary_str, step)
         best_action = np.argmax(q_vals)
         max_q = q_vals[best_action]
         return best_action, max_q
@@ -73,7 +72,7 @@ class Networks:
         return update_op
 
     def _build_update_op_soft(self, target_vars, online_vars):
-        tau = 1e-2
+        tau = 1e-1
         update_op = [
             target_vars[i].assign(tf.mul(online_vars[i], tau) + tf.mul(
                 target_vars[i], (1 - tau))) for i in range(len(online_vars))
@@ -107,7 +106,7 @@ class Networks:
 
 class QModel:
     def __init__(self, scope, act, n_states, n_actions, size_hidden, momentum,
-                 learningrate, step):
+                 learningrate):
         self.scope = scope
         with tf.variable_scope(scope) as scope:
             self.inputs, self.outputs = self._build_model(act, size_hidden,
@@ -121,12 +120,12 @@ class QModel:
             with tf.name_scope('train'):
                 self.loss = self._build_loss(self.outputs, self.q_targets)
 
-                self.train_op = self._build_train_op(
-                    self.loss, learningrate, momentum, self.var_list, step)
+                self.train_op = self._build_train_op(self.loss, learningrate,
+                                                     momentum, self.var_list)
 
     def _build_model(self, act, size_hidden, n_states, n_actions):
         initializer = tf.contrib.layers.xavier_initializer()
-        activation = tf.nn.relu
+        activation = tf.nn.tanh
         input_ph = tf.placeholder(shape=[None, n_states],
                                   dtype=tf.float32,
                                   name="State")
@@ -135,11 +134,11 @@ class QModel:
             num_outputs=size_hidden,
             weights_initializer=initializer,
             activation_fn=activation)
-        fc2 = tf.contrib.layers.fully_connected(
-            inputs=fc1,
-            num_outputs=size_hidden,
-            weights_initializer=initializer,
-            activation_fn=activation)
+        #fc2 = tf.contrib.layers.fully_connected(
+        #    inputs=fc1,
+        #    num_outputs=size_hidden,
+        #    weights_initializer=initializer,
+        #    activation_fn=activation)
         #    fc3 = tf.contrib.layers.fully_connected(
         #        inputs=fc2,
         #        num_outputs=size_hidden,
@@ -165,9 +164,11 @@ class QModel:
 
         return loss
 
-    def _build_train_op(self, loss, learningrate, momentum, var_list, step):
+    def _build_train_op(self, loss, learningrate, momentum, var_list):
         optimizer = tf.train.AdamOptimizer(learningrate)
-        train_op = optimizer.minimize(loss,
-                                      name="minimize_loss",
-                                      global_step=step)
+        step = tf.contrib.framework.get_global_step()
+        train_op = optimizer.minimize(
+            loss,
+            name="minimize_loss",
+            global_step=tf.contrib.framework.get_global_step())
         return train_op

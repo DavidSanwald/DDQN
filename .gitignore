@@ -3,6 +3,7 @@
 summaries/
 experiments/
 checkpoints/
+monitored/
 .ipynb_checkpoints/
 __pycache__/
 *.py[cod]

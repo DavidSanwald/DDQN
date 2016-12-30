@@ -10,6 +10,7 @@ if __name__ == "__main__":
     import observer
     import tensorflow as tf
     from parameters import *
+    import gym.wrappers
     test = 'test'
     experiment_dir = os.path.abspath("./experiments/{}".format(test))
     checkpoint_dir = os.path.join(experiment_dir, "checkpoints")
@@ -29,9 +30,10 @@ if __name__ == "__main__":
         latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         key1 = 'CartPole-v0'
         key2 = 'LunarLander-v2'
-        environment = gym.make(key1)
-        exp = experiment.Experiment(environment, sess, checkpoint_path)
-        agent = agent.DQNAgent(exp.env, sess)
+        env = gym.make(key2)
+        env = gym.wrappers.Monitor('./monitored', force=True)(env)
+        exp = experiment.Experiment(env, sess, checkpoint_path)
+        agent = agent.DQNAgent(sess, env)
         epsilon = observer.EpsilonUpdater(agent)
         agent.add_observer(epsilon)
         exp.saver = tf.train.Saver()
@@ -47,6 +49,7 @@ if __name__ == "__main__":
 
         #exp.env.monitor.start('/tmp/cartpole-experiment-1')
         exp.run_experiment(agent)
+        env.close()
         #exp.env.monitor.close()
 
         #epsilon = observer.EpsilonUpdater(agent)

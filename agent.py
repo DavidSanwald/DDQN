@@ -10,14 +10,13 @@ from qnet import Networks
 
 
 class DQNAgent:
-    def __init__(self, environment, sess):
+    def __init__(self, sess, environment):
         self.env = environment
         self.memory = ReplayMemory(MEMORY_CAPACITY)
         self.dim_actions = self.env.action_space.n
-        self.dim_states = self.env.observation_space.shape
-        self.NN = Networks(ACTIVATION, self.env.observation_space.shape[0],
-                           self.env.action_space.n, SIZE_HIDDEN, MOMENTUM,
-                           LEARNING_RATE, sess)
+        self.dim_states = self.env.observation_space.shape[0]
+        self.NN = Networks(ACTIVATION, self.dim_states, self.dim_actions,
+                           SIZE_HIDDEN, MOMENTUM, LEARNING_RATE, sess)
         self.observers = []
         self.episode_count = 0
         self.step_count_total = 1
@@ -83,13 +82,14 @@ class DQNAgent:
         batch = self.memory.get_batch(self.batch_size)
         for state, action, newstate, reward, done in batch:
             X.append(state)
-            target, _ = self.NN.predict(state, False)
-            q_vals_new_t, _ = self.NN.predict(newstate, self.usetarget)
-            a_select, _ = self.NN.best_action(newstate, False)
+            target = self.NN.predict(state, False)
+            q_vals_new_t = self.NN.predict(newstate, self.usetarget)
+            #a_select, _ = self.NN.best_action(newstate, False)
             if done:
                 target[action] = reward
             else:
-                target[action] = reward + self.gamma * q_vals_new_t[a_select]
+                target[action] = reward + self.gamma * np.max(
+                    q_vals_new_t)  #q_vals_new_t[a_select]
             y.append(target)
         return X, y
 

@@ -15,12 +15,12 @@ class Networks:
                           momentum, learningrate)
         self.n_states = n_states
         self.sess = sess
-        self.update_op = self._build_update_op(self.Q_t.var_list,
-                                               self.Q_o.var_list)
+        self.update_op = self._build_update_op_soft(self.Q_t.var_list,
+                                                    self.Q_o.var_list)
         #self.global_step = tf.Variable(0, name='global_step', trainable=False)
         #self.predictions = tf.summary.histogram("q_vals", self.Q_o.outputs)
         self.summary_ops_scalar = self._build_summaries_scalar()
-        self.summary_ops_histo = self._build_summaries_histo()
+        #self.summary_ops_histo = self._build_summaries_histo()
 
         self.writer = tf.summary.FileWriter(LOGS_DIR, self.sess.graph)
         pass
@@ -42,20 +42,18 @@ class Networks:
                                    feed_dict={self.Q_t.inputs: state})
             summary_str = ""
         else:
-            summary_str, q_vals, step = self.sess.run(
-                [
-                    self.summary_ops_histo, self.Q_o.outputs,
-                    tf.train.get_global_step()
-                ],
-                feed_dict={self.Q_o.inputs: state})
-            #    predictions = tf.summary.histogram("q_vals", q_vals[0])
-            #self.writer.add_summary(test, self.step)
-        return q_vals[0], summary_str
+            q_vals, step = self.sess.run([
+                self.Q_o.outputs, tf.train.get_global_step()
+            ],
+                                         feed_dict={self.Q_o.inputs: state})
+        #    predictions = tf.summary.histogram("q_vals", q_vals[0])
+        #self.writer.add_summary(test, self.step)
+        return q_vals[0]
 
     def best_action(self, state, usetarget):
-        q_vals, summary_str = self.predict(state, usetarget)
+        q_vals = self.predict(state, usetarget)
         step = tf.contrib.framework.get_global_step().eval()
-        self.writer.add_summary(summary_str, step)
+        #self.writer.add_summary(summary_str, step)
         best_action = np.argmax(q_vals)
         max_q = q_vals[best_action]
         return best_action, max_q
@@ -72,7 +70,7 @@ class Networks:
         return update_op
 
     def _build_update_op_soft(self, target_vars, online_vars):
-        tau = 1e-1
+        tau = 1e-2
         update_op = [
             target_vars[i].assign(tf.mul(online_vars[i], tau) + tf.mul(
                 target_vars[i], (1 - tau))) for i in range(len(online_vars))
@@ -124,21 +122,24 @@ class QModel:
                                                      momentum, self.var_list)
 
     def _build_model(self, act, size_hidden, n_states, n_actions):
-        initializer = tf.contrib.layers.xavier_initializer()
-        activation = tf.nn.tanh
+        w_initializer = tf.contrib.layers.xavier_initializer(uniform=True)
+        b_initializer = tf.constant_initializer(0.01)
+        activation = tf.nn.relu
         input_ph = tf.placeholder(shape=[None, n_states],
                                   dtype=tf.float32,
                                   name="State")
         fc1 = tf.contrib.layers.fully_connected(
             inputs=input_ph,
             num_outputs=size_hidden,
-            weights_initializer=initializer,
+            weights_initializer=w_initializer,
+            biases_initializer=b_initializer,
             activation_fn=activation)
-        #fc2 = tf.contrib.layers.fully_connected(
-        #    inputs=fc1,
-        #    num_outputs=size_hidden,
-        #    weights_initializer=initializer,
-        #    activation_fn=activation)
+        fc2 = tf.contrib.layers.fully_connected(
+            inputs=fc1,
+            num_outputs=size_hidden,
+            weights_initializer=w_initializer,
+            biases_initializer=b_initializer,
+            activation_fn=activation)
         #    fc3 = tf.contrib.layers.fully_connected(
         #        inputs=fc2,
         #        num_outputs=size_hidden,
@@ -149,7 +150,7 @@ class QModel:
         #        num_outputs=size_hidden,
         #        weights_initializer=initializer,
         #        activation_fn=activation)
-        predictions = tf.contrib.layers.fully_connected(inputs=fc1,
+        predictions = tf.contrib.layers.fully_connected(inputs=fc2,
                                                         num_outputs=n_actions)
 
         return input_ph, predictions
@@ -161,6 +162,10 @@ class QModel:
         clipped_error = tf.select(
             tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
         loss = tf.reduce_mean(clipped_error, name='loss')
+        #assert_op = tf.is_numeric_tensor(loss)
+        #out = tf.with_dependencies([assert_op], out)
+        #with tf.control_dependencies([assert_op]):
+        #    loss = tf.identity(loss, name='loss')
 
         return loss
 

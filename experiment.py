@@ -9,6 +9,7 @@ import gym
 import observer
 import tensorflow as tf
 from parameters import *
+from tensorflow.core.framework import summary_pb2
 
 
 class Experiment:
@@ -18,9 +19,9 @@ class Experiment:
         self.episode_count = 0
         self.reward_buffer = deque([], maxlen=100)
         self.folder = folder
+        self.reward = 0
 
     def run_experiment(self, agent):
-        #self.env.monitor.start('/tmp/cartpole', force=True)
         for n in range(N_EPISODES):
             self.run_episode(agent)
         self.env.monitor.close()
@@ -43,13 +44,21 @@ class Experiment:
             s = s_
             step += 1
             count = tf.contrib.framework.get_or_create_global_step().eval()
-            print(count)
-            if count % 500 == 0:
+            #print(count)
+            if count % 1000 == 0:
                 self.saver.save(self.sess, self.folder, global_step=count)
                 print('Save')
         self.episode_count += 1
         self.reward_buffer.append(self.reward)
         average = sum(self.reward_buffer) / len(self.reward_buffer)
+        agent.NN.writer.add_summary(
+            make_summary('Episode_Reward', self.reward), self.episode_count)
+        agent.NN.writer.flush()
 
         print("Episode Nr. {} \nScore: {} \nAverage: {} \nEpsilon: {}".format(
             self.episode_count, self.reward, average, agent.epsilon))
+
+
+def make_summary(name, val):
+    return summary_pb2.Summary(value=[summary_pb2.Summary.Value(
+        tag=name, simple_value=val)])

@@ -30,7 +30,8 @@ if __name__ == "__main__":
         latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         key1 = 'CartPole-v0'
         key2 = 'LunarLander-v2'
-        env = gym.make(key2)
+        key3 = 'Pong-v0'
+        env = gym.make(key3)
         env = gym.wrappers.Monitor('./monitored', force=True)(env)
         exp = experiment.Experiment(env, sess, checkpoint_path)
         agent = agent.DQNAgent(sess, env)

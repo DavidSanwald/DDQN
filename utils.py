@@ -18,7 +18,7 @@ def prep_batch(to_prep):
 
 def prep_obs(observation):
     img = Image.fromarray(observation)
-    img = img.resize(INPUT_SHAPE).convert('L')
+    img = img.resize((84, 84)).convert('L')
     prepped_obs = np.array(img)
     return prepped_obs.astype('uint8')
 

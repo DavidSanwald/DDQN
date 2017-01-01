@@ -5,39 +5,44 @@ import statistics
 from collections import deque
 
 import agent
+import atarienv
 import gym
 import observer
 import tensorflow as tf
+import utils
 from parameters import *
 from tensorflow.core.framework import summary_pb2
 
 
 class Experiment:
-    def __init__(self, environment, sess, folder):
+    def __init__(self, envkey, sess, folder):
         self.sess = sess
-        self.env = environment
+        self.env2 = gym.make(envkey)
+        self._env = gym.wrappers.Monitor(self.env2, './monitored', force=True)
+        self.env = atarienv.AtariEnvironment(self._env, 4, sess)
         self.episode_count = 0
         self.reward_buffer = deque([], maxlen=100)
         self.folder = folder
         self.reward = 0
+        self.action_repeat = 4
 
     def run_experiment(self, agent):
         for n in range(N_EPISODES):
             self.run_episode(agent)
-        self.env.monitor.close()
         pass
 
     def run_episode(self, agent):
         self.reward = 0
         max_q_episode = []
-        s = self.env.reset()
+        s = self.env.get_initial_state()
         done = False
         step = 0
         while not done and step <= 2000:
-            self.env.render()
+            #self.env.render()
             a, max_q = agent.act(s)
             max_q_episode.append(max_q)
             s_, r, done, _ = self.env.step(a)
+            s_ = utils.prep_state(utils.prep_obs(self.env.reset()))
             agent.learn((s, a, s_, r, done))
             #self.sess.run(print(agent.loss.eval))
             self.reward += r

@@ -6,6 +6,7 @@ if __name__ == "__main__":
     import shutil
     import gym
     import agent
+    import atarienv
     import experiment
     import observer
     import tensorflow as tf
@@ -31,10 +32,10 @@ if __name__ == "__main__":
         key1 = 'CartPole-v0'
         key2 = 'LunarLander-v2'
         key3 = 'Pong-v0'
-        env = gym.make(key3)
-        env = gym.wrappers.Monitor('./monitored', force=True)(env)
-        exp = experiment.Experiment(env, sess, checkpoint_path)
-        agent = agent.DQNAgent(sess, env)
+        key4 = "Breakout-v0"
+        #env = gym.make(key4)
+        exp = experiment.Experiment(key4, sess, checkpoint_path)
+        agent = agent.DQNAgent(sess)
         epsilon = observer.EpsilonUpdater(agent)
         agent.add_observer(epsilon)
         exp.saver = tf.train.Saver()

@@ -10,13 +10,12 @@ from qnet import Networks
 
 
 class DQNAgent:
-    def __init__(self, sess, environment):
-        self.env = environment
+    def __init__(self, sess):
+        #self.env = environment
         self.memory = ReplayMemory(MEMORY_CAPACITY)
-        self.dim_actions = self.env.action_space.n
-        self.dim_states = self.env.observation_space.shape[0]
-        self.NN = Networks(ACTIVATION, self.dim_states, self.dim_actions,
-                           SIZE_HIDDEN, MOMENTUM, LEARNING_RATE, sess)
+        #self.dim_actions = self.env.action_space.n
+        #self.dim_states = self.env.observation_space.shape[0]
+        self.NN = Networks(sess)
         self.observers = []
         self.episode_count = 0
         self.step_count_total = 1
